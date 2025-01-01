@@ -1,7 +1,7 @@
 import React from 'react';
 import {beforeEach, describe, expect, it, vi } from 'vitest';
 import CodeEditor from './CodeEditor.tsx';
-import { render, screen } from '@testing-library/react';
+import {act, render, screen, waitFor} from '@testing-library/react';
 import {CodeDocument} from '../types/CodeDocument.ts';
 import useClient from "../hooks/use-client.ts";
 
@@ -16,7 +16,7 @@ describe('codeEditor', () => {
     });
 
     it('should display text area for editing', async () => {
-        await render(<CodeEditor />);
+        await act(() => render(<CodeEditor />));
 
         const editorElement = screen.getByTestId('code-editor');
         expect(editorElement).toBeDefined();
@@ -31,14 +31,16 @@ describe('codeEditor', () => {
         } as CodeDocument;
 
         mockedNewDocFn.mockResolvedValue(expectedResult)
-        await render(<CodeEditor />);
+        await act(() => render(<CodeEditor />));
 
         const newDoc = screen.getByTestId('new-document');
-        newDoc.click();
+        newDoc.click()
 
-        const codeEditor = screen.getByTestId('code-editor');
+        await waitFor(() => {
+            const codeEditor = screen.getByTestId('code-editor');
 
-        expect(mockedNewDocFn).toHaveBeenCalled();
-        expect(codeEditor.textContent).toContain(expectedResult.content);
+            expect(mockedNewDocFn).toHaveBeenCalled();
+            expect(codeEditor.textContent).toContain(expectedResult.content);
+        });
     });
 });
