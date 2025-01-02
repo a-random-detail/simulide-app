@@ -1,5 +1,5 @@
 import './App.css'
-import {CodeEditor} from "./code-editor/CodeEditor.tsx";
+import CodeEditor from "./code-editor/CodeEditor.tsx";
 
 function App() {
   return (

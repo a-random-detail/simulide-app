@@ -1,4 +1,4 @@
-export type CodeDocument = {
+export type CodeDocumentGist = {
     name: string;
     content?: string;
 };

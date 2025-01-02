@@ -7,7 +7,7 @@ import useClient from "../hooks/use-client.ts";
 
 vi.mock('../hooks/use-client');
 
-describe('codeEditor', () => {
+describe('CodeEditor', () => {
     const mockedNewDocFn = vi.fn();
 
     beforeEach(() => {
