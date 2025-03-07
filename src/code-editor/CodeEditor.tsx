@@ -27,16 +27,15 @@ export const CodeEditor = () => {
                 tabIndex={0}
                 onKeyDown={() => textareaRef.current?.focus()}
                 onClick={() => textareaRef.current?.focus()}
-                className="w-full h-screen flex flex-col" data-testid="code-editor">
+                className="w-full h-screen relative flex flex-col" data-testid="code-editor">
 
             <textarea
                 ref={textareaRef}
-                className="absolute inset-0 resize-none bg-transparent p-2 font-mono text-transparent caret-white outline-none"
+                className="absolute inset-2 resize-none bg-transparent p-5 px-10 font-mono text-transparent caret-white outline-none"
                 value={content}
                 onChange={handleContentChange}
             />
             <SyntaxHighlighter
-                className="flex-grow w-full h-full resize-none border-none p-4 box-border font-mono text-lg"
                 language="javascript"
                 showLineNumbers={true}
                 startingLineNumber={1}
