@@ -1,35 +1,28 @@
-import {CodeDocument} from "../types/CodeDocument.ts";
-import useClient from "../hooks/use-client.ts";
-import {useState} from "react";
+import { useState } from "react";
+import { useDocumentContext } from "../context/DocumentContext";
 
 
-export default function CodeEditor(){
+export const CodeEditor = () => {
 
-    const [codeContent, setCodeContent] = useState<string | undefined>();
-    const { createNewDocument }= useClient();
+    const { documentId, content, initializeDocument, handleDocumentChange} = useDocumentContext();
+    const [lastContent, setLastContent] = useState<string>("");
 
-    const newDocFn = async () => {
-        const content = `
-        
-export default function HelloWorld() {
-    const print = () => ('Hello, World!');
+    const handleContentChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newContent = event.target.value;
+        const position = event.target.selectionStart;
+        const operationType = newContent.length > lastContent.length ? "insert" : "delete";
 
-    return {
-      print 
-    };
-}
-        `;
-       const result = await createNewDocument({ name: 'foo', content } as CodeDocument);
-       setCodeContent(result.content);
-    };
+        handleDocumentChange(newContent, position, operationType);
+        setLastContent(newContent);
+    };  
 
     return (
-        <>
-            <div className="w-full flex flex-col">
-                <h1> code editor here</h1>
-                <button className={`btn btn-blue ml-auto flex flex-row`} data-testid="new-document" onClick={newDocFn}>New</button>
-                <textarea data-testid="code-editor" className={`w-full flex flex-row whitespace-pre h-screen text-white p-10`} value={codeContent} contentEditable="true"></textarea>
-            </div>
-        </>
+        <div className="w-full flex flex-col" data-testid="code-editor">
+            <h1> {!documentId && <button onClick={initializeDocument}>New Document</button>} </h1>
+            { documentId && (
+                <textarea value={content} onChange={handleContentChange} rows={10} cols={50}/>
+
+            )}
+        </div>
     );
 }

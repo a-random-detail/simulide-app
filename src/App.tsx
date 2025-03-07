@@ -1,10 +1,10 @@
 import './App.css'
-import CodeEditor from "./code-editor/CodeEditor.tsx";
+import {CodeEditorWrapper} from "./code-editor/CodeEditorWrapper";
 
 function App() {
   return (
     <>
-        <CodeEditor></CodeEditor>
+        <CodeEditorWrapper></CodeEditorWrapper>
     </>
   )
 }
