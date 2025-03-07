@@ -1,10 +1,13 @@
 import './App.css'
-import {CodeEditorWrapper} from "./code-editor/CodeEditorWrapper";
+import { CodeEditor } from './code-editor/CodeEditor';
+import { DocumentProvider } from './context/DocumentContext';
 
 function App() {
   return (
     <>
-        <CodeEditorWrapper></CodeEditorWrapper>
+        <DocumentProvider>
+            <CodeEditor />
+        </DocumentProvider>
     </>
   )
 }

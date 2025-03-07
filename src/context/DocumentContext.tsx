@@ -17,24 +17,26 @@ interface DocumentProviderProps {
 }
 
 export const DocumentProvider = ({ children = null }: DocumentProviderProps): JSX.Element => {
-    const [documentId, setDocumentId] = useState<string | null>(null);
-    const [content, setContent] = useState<string>("");
+    const [documentId, setDocumentId] = useState<string | null>("doc-id-here");
+    const [content, setContent] = useState<string>("Hello, world!");
     const [pendingOperation, setPendingOperation] = useState<Operation | null>(null);
 
     useEffect(() => {
         operationService.startConnection();
-        return () => operationService.closeConnection();
+        return () => {
+            operationService.closeConnection();
+        };
     }, []);
 
     const initializeDocument = useCallback(async () => {
         try {
             const docPayload: DocumentPayload = {
                 name: "Untitled Document",
-                content: "",
+                content: content,
             };
             const doc = await createDocument(docPayload);
             setDocumentId(doc.id);
-            await operationService.joinDocumentGroup(doc.id);
+            // await operationService.joinDocumentGroup(doc.id);
         } catch (error) {
             console.error("Error creating document:", error);
         }

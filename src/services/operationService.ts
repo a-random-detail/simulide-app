@@ -42,7 +42,7 @@ class OperationService {
     }
   }
 
-  applyOperation(operation: Operation) {
+  async applyOperation(operation: Operation) {
     if (this.connection.state === signalR.HubConnectionState.Connected) {
       this.connection.send("ApplyOperation", operation);
     } else {
@@ -57,8 +57,13 @@ class OperationService {
     }
   }
 
-  closeConnection() {
-    this.connection.stop();
+  async closeConnection() {
+    try {
+      await this.connection.stop();
+      console.log("SignalR Disconnected.");
+  } catch (err) {
+      console.error("SignalR Disconnection Error: ", err);
+  }
   }
 }
 
