@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Operation, operationService } from "../services/operationService";
 import { createDocument, DocumentPayload } from "../services/documentService";
 import useDebounce from "../hooks/use-debounce";
+import { CodeOperation } from "../types/CodeOperation";
+import OperationService from "../services/operationService";
 
 interface DocumentContextType {
     documentId: string | null;
@@ -17,16 +18,14 @@ interface DocumentProviderProps {
 }
 
 export const DocumentProvider = ({ children = null }: DocumentProviderProps): JSX.Element => {
-    const [documentId, setDocumentId] = useState<string | null>("doc-id-here");
-    const [content, setContent] = useState<string>("Hello, world!");
-    const [pendingOperation, setPendingOperation] = useState<Operation | null>(null);
+    const [documentId, setDocumentId] = useState<string | null>(null);
+    const [content, setContent] = useState<string>("");
+    const [pendingOperation, setPendingOperation] = useState<CodeOperation | null>(null);
+    const [users, setUsers] = useState<string[]>([]);
 
-    useEffect(() => {
-        operationService.startConnection();
-        return () => {
-            operationService.closeConnection();
-        };
-    }, []);
+    const {joinDocumentGroup, leaveDocumentGroup, applyOperation} = OperationService();
+
+
 
     const initializeDocument = useCallback(async () => {
         try {
@@ -35,8 +34,8 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
                 content: content,
             };
             const doc = await createDocument(docPayload);
-            setDocumentId(doc.id);
-            // await operationService.joinDocumentGroup(doc.id);
+            setDocumentId(doc.data.id);
+            await joinDocumentGroup(doc.id).catch(reason => console.log("document group join failed:", reason));
         } catch (error) {
             console.error("Error creating document:", error);
         }
@@ -48,22 +47,22 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
             const length = type === "insert" ? newText.length - content.length : content.length - newText.length;
             setPendingOperation({ documentId, type, position, length });
         }
-    }, [documentId, content]);
+    }, [content]);
 
     useDebounce(() => {
         if (pendingOperation) {
-            operationService.applyOperation(pendingOperation);
+            applyOperation(pendingOperation);
             setPendingOperation(null);
         }
     }, 500, [pendingOperation]);
 
-    useEffect(() => {
-        return () => {
-            if (documentId) {
-                operationService.leaveDocumentGroup(documentId);
-            }
-        };
-    }, [documentId]);
+    // useEffect(() => {
+        // return () => {
+            // if (documentId) {
+                // leaveDocumentGroup(documentId);
+            // }
+        // };
+    // }, [documentId]);
 
     const contextValue: DocumentContextType = {
         documentId,

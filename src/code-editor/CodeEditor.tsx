@@ -21,7 +21,11 @@ export const CodeEditor = () => {
 
     return (
         <>
-            <h1> {!documentId && <button onClick={initializeDocument}>New Document</button>} </h1> 
+            <h1> 
+                {!documentId 
+                    ? <button onClick={initializeDocument}>New Document</button>
+                    : documentId
+                } </h1> 
             <div
                 role="button"
                 tabIndex={0}
