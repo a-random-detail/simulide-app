@@ -34,11 +34,11 @@ class OperationService {
 
   async startConnection() {
     try {
-      if (this.connection) {
-        await this.connection.start();
-      } else {
+      if (!this.connection) {
         console.error("SignalR connection is undefined.");
+        return;
       }
+      await this.connection.start();
       console.log("Connected to SignalR WebSocket");
     } catch (error) {
       console.error("SignalR Connection Error:", error);
@@ -88,5 +88,5 @@ class OperationService {
 
 }
 
-export default OperationService.getInstance;
+export default OperationService.getInstance();
 

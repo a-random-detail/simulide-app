@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { createDocument, DocumentPayload } from "../services/documentService";
+import { createDocument, DocumentPayload, DocumentResponse } from "../services/documentService";
 import useDebounce from "../hooks/use-debounce";
 import { CodeOperation } from "../types/CodeOperation";
 import OperationService from "../services/operationService";
@@ -23,9 +23,12 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     const [pendingOperation, setPendingOperation] = useState<CodeOperation | null>(null);
     const [users, setUsers] = useState<string[]>([]);
 
-    const {joinDocumentGroup, leaveDocumentGroup, applyOperation} = OperationService();
+    const operationService = OperationService;
 
-
+    useEffect(() => {
+        if (!documentId) return;
+        operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
+    }, [documentId]);
 
     const initializeDocument = useCallback(async () => {
         try {
@@ -34,8 +37,13 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
                 content: content,
             };
             const doc = await createDocument(docPayload);
-            setDocumentId(doc.data.id);
-            await joinDocumentGroup(doc.id).catch(reason => console.log("document group join failed:", reason));
+            if (!doc.isSuccessful) {
+                console.error("Error(s) while creating document", doc.errors);
+                return;
+            }
+            const docResponse = doc.data as DocumentResponse; 
+            setDocumentId(docResponse.id);
+            
         } catch (error) {
             console.error("Error creating document:", error);
         }
@@ -51,7 +59,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
 
     useDebounce(() => {
         if (pendingOperation) {
-            applyOperation(pendingOperation);
+            operationService.applyOperation(pendingOperation);
             setPendingOperation(null);
         }
     }, 500, [pendingOperation]);
