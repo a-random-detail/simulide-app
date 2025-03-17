@@ -1,14 +1,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { createDocument, DocumentPayload, DocumentResponse } from "../services/documentService";
 import useDebounce from "../hooks/use-debounce";
-import { CodeOperation } from "../types/CodeOperation";
+import { CodeOperation, OperationGist } from "../types/CodeOperation";
 import OperationService from "../services/operationService";
+import { CodeDocument } from "../types/CodeDocument";
 
 interface DocumentContextType {
     documentId: string | null;
     content: string;
     initializeDocument: () => void;
-    handleDocumentChange: (newText: string, position: number, type: "insert" | "delete") => void;
+    handleDocumentChange: (newText: string) => void;
 }
 
 const CollabDocumentContext = createContext<DocumentContextType>({} as DocumentContextType);
@@ -19,8 +20,9 @@ interface DocumentProviderProps {
 
 export const DocumentProvider = ({ children = null }: DocumentProviderProps): JSX.Element => {
     const [documentId, setDocumentId] = useState<string | null>(null);
-    const [content, setContent] = useState<string>("");
-    const [pendingOperation, setPendingOperation] = useState<CodeOperation | null>(null);
+    const [oldContent, setOldContent] = useState<string | null>(null);
+    const [newContent, setNewContent] = useState<string>("");
+    const [version, setVersion] = useState<number>(0);
     const [users, setUsers] = useState<string[]>([]);
 
     const operationService = OperationService;
@@ -34,7 +36,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         try {
             const docPayload: DocumentPayload = {
                 name: "Untitled Document",
-                content: content,
+                content: newContent,
             };
             const doc = await createDocument(docPayload);
             if (!doc.isSuccessful) {
@@ -43,26 +45,51 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
             }
             const docResponse = doc.data as DocumentResponse; 
             setDocumentId(docResponse.id);
+            setOldContent(docResponse.content ?? null);
+            setVersion(docResponse.version);
             
         } catch (error) {
             console.error("Error creating document:", error);
         }
     }, []);
 
-    const handleDocumentChange = useCallback((newText: string, position: number, type: "insert" | "delete") => {
-        setContent(newText);
-        if (documentId) {
-            const length = type === "insert" ? newText.length - content.length : content.length - newText.length;
-            setPendingOperation({ documentId, type, position, length });
+    const computeTextDiff = (oldText: string, newText: string): OperationGist => {
+        let start = 0;
+
+        while (start < oldText.length && start < newText.length && oldText[start] === newText[start]) 
+            start++;
+
+        let endOld = oldText.length-1;
+        let endNew = newText.length-1;
+
+        while (endOld >= start && endNew >= start && oldText[endOld] === newText[endNew]) {
+            endOld--;
+            endNew--;
         }
-    }, [content]);
+
+        const deleted = oldText.slice(start, endOld+1);
+        const inserted = newText.slice(start, endNew+1);
+
+        return {
+            position: start,
+            type: inserted.length > 0 ? 'insert' : 'delete',
+            content: inserted,
+            length: inserted.length > 0 ? inserted.length : deleted.length
+        };
+    };
+
+    const handleDocumentChange = useCallback((newText: string) => {
+        setNewContent(newText);
+    }, [newContent]);
+
 
     useDebounce(() => {
-        if (pendingOperation) {
-            operationService.applyOperation(pendingOperation);
-            setPendingOperation(null);
+        if (documentId) {
+            const diff = computeTextDiff(oldContent ?? "", newContent);
+            operationService.applyOperation({ documentId, ...diff, version});
+            setOldContent(newContent);
         }
-    }, 500, [pendingOperation]);
+    }, 5000, [newContent]);
 
     // useEffect(() => {
         // return () => {
@@ -74,7 +101,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
 
     const contextValue: DocumentContextType = {
         documentId,
-        content,
+        content: newContent,
         initializeDocument,
         handleDocumentChange,
     };

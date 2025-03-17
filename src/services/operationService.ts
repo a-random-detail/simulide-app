@@ -56,10 +56,15 @@ class OperationService {
   }
 
   async applyOperation(operation: CodeOperation) {
-    if (this.connection.state === signalR.HubConnectionState.Connected) {
-      this.connection.send("ApplyOperation", operation);
-    } else {
+    if (this.connection.state !== signalR.HubConnectionState.Connected) {
       console.warn("SignalR not connected. Operation not sent.");
+      return;
+    }
+    try {
+      await this.connection.send("ApplyOperation", operation);
+      console.log("successfully sent the operation to the hub");
+    } catch (err) {
+      console.error("Operation application failed.", err);
     }
   }
 

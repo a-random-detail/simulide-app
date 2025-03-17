@@ -2,6 +2,8 @@ import { API_BASE } from "./service-constants";
 
 export interface DocumentResponse {
   id: string;
+  content?: string;
+  version: number;
 }
 
 export type DocumentPayload = {

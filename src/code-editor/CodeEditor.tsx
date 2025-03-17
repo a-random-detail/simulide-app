@@ -7,16 +7,10 @@ import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 export const CodeEditor = () => {
 
     const { documentId, content, initializeDocument, handleDocumentChange} = useDocumentContext();
-    const [lastContent, setLastContent] = useState<string>("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleContentChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newContent = event.target.value;
-        const position = event.target.selectionStart;
-        const operationType = newContent.length > lastContent.length ? "insert" : "delete";
-
-        handleDocumentChange(newContent, position, operationType);
-        setLastContent(newContent);
+        handleDocumentChange(event.target.value);
     };  
 
     return (
@@ -45,11 +39,10 @@ export const CodeEditor = () => {
                 startingLineNumber={1}
                 style={dark}
                 customStyle={{ flex: '1', background: 'transparent'}}
+                className="resize-none p-5 px-10 font-mono"
             >
                 {content}
             </SyntaxHighlighter>
-
-
         </div>
         </>
     );
