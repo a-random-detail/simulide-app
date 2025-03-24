@@ -4,6 +4,7 @@ import useDebounce from "../hooks/use-debounce";
 import { CodeOperation, OperationGist } from "../types/CodeOperation";
 import OperationService from "../services/operationService";
 import { CodeDocument } from "../types/CodeDocument";
+import { PartyChangeEvent } from "../types/PartyChangedEvent";
 
 interface DocumentContextType {
     documentId: string | null;
@@ -27,9 +28,24 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
 
     const operationService = OperationService;
 
+    const handleReceiveOperation = (operation: CodeOperation) => { 
+        console.log("operation received (in provider):", operation); 
+    };
+
+    const handlePartyChange = (partyChange: PartyChangeEvent) => {
+        console.log("party changed (in provider):", partyChange);
+        updateUserList(partyChange);
+    };
+
+    const updateUserList = (partyChange: PartyChangeEvent ) => {
+        console.log('Updating user list from party change event (in provider):', partyChange);
+    };
+
     useEffect(() => {
         if (!documentId) return;
         operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
+        operationService.receiveOperation(handleReceiveOperation);
+        operationService.partyChanged(handlePartyChange);
     }, [documentId]);
 
     const initializeDocument = useCallback(async () => {

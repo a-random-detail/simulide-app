@@ -10,8 +10,8 @@ export type PartyChangeFn = (partyChange: PartyChangeEvent) => void;
 
 class OperationService {
   private connection: signalR.HubConnection;
-  public operationEvent: (onReceiveOperation: ReceiveOperationFn) => void;
-  public partyChangeEvent: (onPartyChange: PartyChangeFn) => void; 
+  public receiveOperation: (onReceiveOperation: ReceiveOperationFn) => void;
+  public partyChanged: (onPartyChange: PartyChangeFn) => void; 
   static instance: OperationService;
 
   constructor() {
@@ -23,13 +23,11 @@ class OperationService {
       .configureLogging(signalR.LogLevel.Information)
       .build();
 
+
+      console.log("SignalR event handlers registered.");
+
       this.startConnection().catch(err => console.error("Error while starting connection: ", err));
 
-    this.operationEvent = (onReceiveOperation) =>
-      this.connection.on(RECEIVE_OPERATION_COMMAND, (operation: CodeOperation) => console.log("operation received:", operation));
-
-    this.partyChangeEvent = (onPartyChange) =>
-      this.connection.on(PARTY_CHANGED_COMMAND, (event: PartyChangeEvent) => console.log("party changed:", event));
   }
 
   async startConnection() {
@@ -40,6 +38,19 @@ class OperationService {
       }
       await this.connection.start();
       console.log("Connected to SignalR WebSocket");
+      this.receiveOperation = (onReceiveOperation) =>
+        this.connection.on(RECEIVE_OPERATION_COMMAND, (operation: CodeOperation) => {
+          console.log("operation received (in service):", operation);
+          onReceiveOperation(operation);
+        });
+
+      this.partyChanged = (onPartyChange) =>
+        this.connection.on(PARTY_CHANGED_COMMAND, (event: PartyChangeEvent) => {
+          console.log("party changed (in service):", event);
+          onPartyChange(event);
+        });
+
+      console.log("SignalR event handlers registered.");
     } catch (error) {
       console.error("SignalR Connection Error:", error);
       setTimeout(this.startConnection, 5000);
