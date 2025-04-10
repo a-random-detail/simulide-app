@@ -3,12 +3,12 @@ import { createDocument, DocumentPayload, DocumentResponse } from "../services/d
 import useDebounce from "../hooks/use-debounce";
 import { CodeOperation, OperationGist } from "../types/CodeOperation";
 import OperationService from "../services/operationService";
-import { CodeDocument } from "../types/CodeDocument";
-import { PartyChangeEvent } from "../types/PartyChangedEvent";
+import {ActionType, PartyChangeEvent} from "../types/PartyChangedEvent";
 
 interface DocumentContextType {
     documentId: string | null;
     content: string;
+    users: Set<string>;
     initializeDocument: () => void;
     handleDocumentChange: (newText: string) => void;
 }
@@ -24,12 +24,23 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     const [oldContent, setOldContent] = useState<string | null>(null);
     const [newContent, setNewContent] = useState<string>("");
     const [version, setVersion] = useState<number>(0);
-    const [users, setUsers] = useState<string[]>([]);
-
-    const operationService = OperationService;
+    const [users, setUsers] = useState<Set<string>>(new Set<string>());
 
     const handleReceiveOperation = (operation: CodeOperation) => { 
-        console.log("operation received (in provider):", operation); 
+        console.log("operation received (in provider):", operation);
+        if (!documentId) return;
+        if (operation.documentId !== documentId) return;
+
+        const { position, type, content } = operation as OperationGist;
+        let updatedContent = newContent;
+
+        if (type === "insert") {
+            updatedContent = updatedContent.slice(0, position) + content + updatedContent.slice(position);
+        } else if (type === "delete" && !!content.length) {
+            updatedContent = updatedContent.slice(0, position) + updatedContent.slice(position + content.length);
+        }
+
+        setNewContent(updatedContent);
     };
 
     const handlePartyChange = (partyChange: PartyChangeEvent) => {
@@ -37,15 +48,29 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         updateUserList(partyChange);
     };
 
+    const operationService = OperationService;
+
+    operationService.receiveOperation(handleReceiveOperation);
+
+    operationService.partyChanged(handlePartyChange);
+
     const updateUserList = (partyChange: PartyChangeEvent ) => {
-        console.log('Updating user list from party change event (in provider):', partyChange);
+        setUsers((prevUsers => {
+            const updatedUsers = new Set(prevUsers);
+            if (partyChange.action === ActionType.Join) {
+                updatedUsers.add(partyChange.connectionId);
+            } else if (partyChange.action === ActionType.Leave) {
+                updatedUsers.delete(partyChange.connectionId);
+            }
+            return updatedUsers;
+        }
+        ));
+        console.log("user list:", Array.from(users).join(", "));
     };
 
     useEffect(() => {
         if (!documentId) return;
         operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
-        operationService.receiveOperation(handleReceiveOperation);
-        operationService.partyChanged(handlePartyChange);
     }, [documentId]);
 
     const initializeDocument = useCallback(async () => {
@@ -95,14 +120,16 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     };
 
     const handleDocumentChange = useCallback((newText: string) => {
+        console.log("handleDocumentChange", newText);
         setNewContent(newText);
     }, [newContent]);
 
 
-    useDebounce(() => {
+    useDebounce(async () => {
         if (documentId) {
+
             const diff = computeTextDiff(oldContent ?? "", newContent);
-            operationService.applyOperation({ documentId, ...diff, version});
+            await operationService.applyOperation({ documentId, ...diff, version});
             setOldContent(newContent);
         }
     }, 5000, [newContent]);
@@ -120,6 +147,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         content: newContent,
         initializeDocument,
         handleDocumentChange,
+        users: users
     };
 
     return (
