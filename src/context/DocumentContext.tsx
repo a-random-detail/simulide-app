@@ -137,7 +137,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
             await operationService.applyOperation({ documentId, ...diff, version});
             setOldContent(newContent);
         }
-    }, 5000, [newContent]);
+    }, 1000, [newContent]);
 
     // useEffect(() => {
         // return () => {
