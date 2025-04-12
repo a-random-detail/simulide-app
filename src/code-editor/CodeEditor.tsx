@@ -15,13 +15,13 @@ export const CodeEditor = () => {
 
     return (
         <div className="flex flex-row p-10">
-            <div className="flex flex-col p-5 min-w-64 bg-amber-500">
+            <div className="flex flex-col p-5 min-w-64">
                 <h3 className="text-2xl">Users:</h3>
                 <ul className="list-inside">
                     {[...users].map((item, index) => <li key={index}>{item}</li>)}
                 </ul>
             </div>
-            <div className="flex flex-col w-full p-5 bg-blue-400">
+            <div className="flex flex-col w-full p-5">
                 <h2 className="text-4xl">
                     {!documentId
                         ? <button onClick={initializeDocument}>New Document</button>

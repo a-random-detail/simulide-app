@@ -20,6 +20,7 @@ interface DocumentProviderProps {
 }
 
 export const DocumentProvider = ({ children = null }: DocumentProviderProps): JSX.Element => {
+    const operationService = OperationService;
     const [documentId, setDocumentId] = useState<string | null>(null);
     const [oldContent, setOldContent] = useState<string | null>(null);
     const [newContent, setNewContent] = useState<string>("");
@@ -33,11 +34,12 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
 
         const { position, type, content } = operation as OperationGist;
         let updatedContent = newContent;
+        let contentLength = content?.length ?? 0;
 
         if (type === "insert") {
             updatedContent = updatedContent.slice(0, position) + content + updatedContent.slice(position);
-        } else if (type === "delete" && !!content.length) {
-            updatedContent = updatedContent.slice(0, position) + updatedContent.slice(position + content.length);
+        } else if (type === "delete" && contentLength > 0) {
+            updatedContent = updatedContent.slice(0, position) + updatedContent.slice(position + contentLength);
         }
 
         setNewContent(updatedContent);
@@ -47,12 +49,6 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         console.log("party changed (in provider):", partyChange);
         updateUserList(partyChange);
     };
-
-    const operationService = OperationService;
-
-    operationService.receiveOperation(handleReceiveOperation);
-
-    operationService.partyChanged(handlePartyChange);
 
     const updateUserList = (partyChange: PartyChangeEvent ) => {
         setUsers((prevUsers => {
@@ -84,11 +80,11 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
                 console.error("Error(s) while creating document", doc.errors);
                 return;
             }
-            const docResponse = doc.data as DocumentResponse; 
+            const docResponse = doc.data as DocumentResponse;
             setDocumentId(docResponse.id);
             setOldContent(docResponse.content ?? null);
             setVersion(docResponse.version);
-            
+
         } catch (error) {
             console.error("Error creating document:", error);
         }
@@ -97,7 +93,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     const computeTextDiff = (oldText: string, newText: string): OperationGist => {
         let start = 0;
 
-        while (start < oldText.length && start < newText.length && oldText[start] === newText[start]) 
+        while (start < oldText.length && start < newText.length && oldText[start] === newText[start])
             start++;
 
         let endOld = oldText.length-1;
@@ -124,6 +120,15 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         setNewContent(newText);
     }, [newContent]);
 
+    useEffect(() => {
+        operationService.receiveOperation(handleReceiveOperation);
+        operationService.partyChanged(handlePartyChange);
+    }, []);
+
+    useEffect(() => {
+        if (!documentId) return;
+        operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
+    }, [documentId]);
 
     useDebounce(async () => {
         if (documentId) {
@@ -157,7 +162,7 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     );
 };
 
-export const useDocumentContext = (): DocumentContextType => {
+export function useDocumentContext(): DocumentContextType {
     const context = useContext(CollabDocumentContext);
     if (!context) {
         throw new Error("useDocumentContext must be used within a <DocumentProvider>");

@@ -23,11 +23,9 @@ class OperationService {
       .configureLogging(signalR.LogLevel.Information)
       .build();
 
-
       console.log("SignalR event handlers registered.");
 
       this.startConnection().catch(err => console.error("Error while starting connection: ", err));
-
   }
 
   async startConnection() {
