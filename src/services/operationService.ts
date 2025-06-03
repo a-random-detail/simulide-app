@@ -8,10 +8,10 @@ const SIGNALR_URL = `${API_BASE}/collaboration`;
 export type ReceiveOperationFn = (operation: CodeOperation) => void;
 export type PartyChangeFn = (partyChange: PartyChangeEvent) => void;
 
-class OperationService {
+export class OperationService {
   private connection: signalR.HubConnection;
-  public receiveOperation: (onReceiveOperation: ReceiveOperationFn) => void;
-  public partyChanged: (onPartyChange: PartyChangeFn) => void; 
+  public receiveOperation?: (onReceiveOperation: ReceiveOperationFn) => void;
+  public partyChanged?: (onPartyChange: PartyChangeFn) => void;
   static instance: OperationService;
 
   constructor() {
@@ -36,6 +36,7 @@ class OperationService {
       }
       await this.connection.start();
       console.log("Connected to SignalR WebSocket");
+
       this.receiveOperation = (onReceiveOperation) =>
         this.connection.on(RECEIVE_OPERATION_COMMAND, (operation: CodeOperation) => {
           console.log("operation received (in service):", operation);

@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import {createContext, useContext, useState, useEffect, useCallback, ReactNode} from "react";
 import { createDocument, DocumentPayload, DocumentResponse } from "../services/documentService";
 import useDebounce from "../hooks/use-debounce";
 import { CodeOperation, OperationGist } from "../types/CodeOperation";
 import OperationService from "../services/operationService";
 import {ActionType, PartyChangeEvent} from "../types/PartyChangedEvent";
+import {useParams} from "react-router";
 
 interface DocumentContextType {
     documentId: string | null;
@@ -19,9 +20,11 @@ interface DocumentProviderProps {
     children: ReactNode;
 }
 
-export const DocumentProvider = ({ children = null }: DocumentProviderProps): JSX.Element => {
-    const operationService = OperationService;
-    const [documentId, setDocumentId] = useState<string | null>(null);
+export const DocumentProvider = ({ children }: DocumentProviderProps): JSX.Element => {
+
+    const { id } = useParams<{ id?: string }>();
+    const operationService  = OperationService;
+    const [documentId, setDocumentId] = useState<string | null>(id ?? null);
     const [oldContent, setOldContent] = useState<string | null>(null);
     const [newContent, setNewContent] = useState<string>("");
     const [version, setVersion] = useState<number>(0);
@@ -63,11 +66,6 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
         ));
         console.log("user list:", Array.from(users).join(", "));
     };
-
-    useEffect(() => {
-        if (!documentId) return;
-        operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
-    }, [documentId]);
 
     const initializeDocument = useCallback(async () => {
         try {
@@ -121,31 +119,23 @@ export const DocumentProvider = ({ children = null }: DocumentProviderProps): JS
     }, [newContent]);
 
     useEffect(() => {
-        operationService.receiveOperation(handleReceiveOperation);
-        operationService.partyChanged(handlePartyChange);
+        if (!operationService) return;
+        operationService.receiveOperation?.(handleReceiveOperation);
+        operationService.partyChanged?.(handlePartyChange);
     }, []);
 
     useEffect(() => {
         if (!documentId) return;
-        operationService.joinDocumentGroup(documentId).catch((err) => console.error(`Unable to join document group ${documentId}`, err));
+        operationService.joinDocumentGroup(documentId).catch((err: any) => console.error(`Unable to join document group ${documentId}`, err));
     }, [documentId]);
 
     useDebounce(async () => {
         if (documentId) {
-
             const diff = computeTextDiff(oldContent ?? "", newContent);
             await operationService.applyOperation({ documentId, ...diff, version});
             setOldContent(newContent);
         }
     }, 1000, [newContent]);
-
-    // useEffect(() => {
-        // return () => {
-            // if (documentId) {
-                // leaveDocumentGroup(documentId);
-            // }
-        // };
-    // }, [documentId]);
 
     const contextValue: DocumentContextType = {
         documentId,
