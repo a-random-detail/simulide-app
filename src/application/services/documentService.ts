@@ -6,7 +6,7 @@ import {
     APPLY_OPERATION_COMMAND,
     JOIN_DOCUMENT_GROUP_COMMAND,
     LEAVE_DOCUMENT_GROUP_COMMAND,
-    PARTY_CHANGED_COMMAND
+    PARTY_CHANGED_COMMAND, RECEIVE_OPERATION_COMMAND
 } from "./service-constants.ts";
 
 export function documentService(deps: { connection: WebSocketConnection, httpClient: DocumentHttpClient}){
@@ -113,18 +113,19 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
         });
 
         if (state.status === 'error' || state.status === 'loading') {
+            log('[DocumentService] Ignoring operation. Document in invalid state.', state);
             return;
         }
-
         if (operation.userId === myConnectionId) {
-            console.log('[DocumentService] Ignoring own operation');
-
             if (pendingOperations.length > 0) {
                 const ackedOp = pendingOperations[0];
 
                 if (ackedOp.version === operation.version) {
                     pendingOperations.shift();
-                    log('[DocumentService] Acknowledged own operation', {operation: ackedOp, remainingPending: pendingOperations.length });
+                    log('[DocumentService] Acknowledged own operation', {
+                        operation: ackedOp,
+                        remainingPending: pendingOperations.length
+                    });
 
                     if (state.status === 'optimistic') {
                         if (pendingOperations.length === 0) {
@@ -145,10 +146,10 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                         };
                     }
 
-                    }
-                    notifyAll();
                 }
-
+                notifyAll();
+            }
+            return;
         }
 
         if (state.status === 'optimistic') {
@@ -218,14 +219,14 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     }
 
     function setupSignalRHandlers() {
-        deps.connection.onMessage(APPLY_OPERATION_COMMAND, handleReceiveOperation);
         deps.connection.onMessage(PARTY_CHANGED_COMMAND, handlePartyChanged);
+        deps.connection.onMessage(RECEIVE_OPERATION_COMMAND, handleReceiveOperation);
         log('SignalR event handlers registered.');
     }
 
     function teardownSignalRHandlers() {
-        deps.connection.offMessage(APPLY_OPERATION_COMMAND, handleReceiveOperation);
         deps.connection.offMessage(PARTY_CHANGED_COMMAND, handlePartyChanged);
+        deps.connection.offMessage(RECEIVE_OPERATION_COMMAND, handleReceiveOperation);
         log('SignalR event handlers unregistered.');
     }
 
@@ -238,7 +239,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                     status: 'synced',
                     document: doc,
                     serverDocument: doc,
-                    activeUsers: []
+                    activeUsers: activeUsers
                 };
 
                 pendingOperations = [];
@@ -246,7 +247,15 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
 
                 await deps.connection.connect();
                 setupSignalRHandlers();
-                await deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
+                const joinResult = await deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
+                log('[DocumentService] Joined document group response', joinResult);
+                if (joinResult?.data?.activeUsers) {
+                    activeUsers = joinResult.data.activeUsers;
+                    state = {
+                        ...state,
+                        activeUsers: activeUsers
+                    };
+                }
                 log('[DocumentService] Joined document group', documentId);
 
             } catch (error) {
@@ -266,7 +275,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             }
         },
         async applyLocalEdit(operation: Operation) {
-            log('[DocumentService] Applying local edit', operation);
+            log('[DocumentService] **** Applying local edit', operation);
             if (state.status !== 'synced' && state.status !== 'optimistic') {
                 log('[DocumentService] Cannot apply local edit. Document not in a valid state.', state);
                 return;

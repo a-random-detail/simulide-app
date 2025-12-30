@@ -90,8 +90,10 @@ export function useCollaborativeDocument(documentId: string) {
 
     const applyEdit = useCallback((newContent: string) => {
         console.log('[useCollaborativeDocument] Applying local edit', newContent);
-        setLocalContent(newContent);
-        schedule();
+        if (newContent !== localContent) {
+            setLocalContent(newContent);
+            schedule();
+        }
         console.log('[useCollaborativeDocument] Local edit applied');
     }, [schedule]);
 
@@ -127,22 +129,23 @@ function calculateOperation(
     if (newContent.length > oldContent.length) {
         const insertedText = newContent.slice(position, newContent.length - (oldContent.length - position));
         return {
-            documentId: '',
+            documentId: documentId,
             type: 'insert',
             content: insertedText,
             position,
-            version: version + 1,
+            version: version,
+            length: insertedText.length
         };
     }
 
     if (newContent.length < oldContent.length) {
         const deleteLength = oldContent.length - newContent.length;
         return {
-            documentId: '',
+            documentId: documentId,
             type: 'delete',
             position,
             length: deleteLength,
-            version: version + 1,
+            version: version,
         };
     }
 
