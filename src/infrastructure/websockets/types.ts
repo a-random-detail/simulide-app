@@ -14,4 +14,5 @@ export interface WebSocketConnection {
     offMessage(method: string, handler: (...args: any[]) => void): void;
     getState(): 'connected' | 'disconnected' | 'connecting' | 'reconnecting';
     getConnectionId(): string | null;
+    isConnected(): boolean;
 }

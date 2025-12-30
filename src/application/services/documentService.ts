@@ -265,7 +265,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                 notifyAll();
             }
         },
-        applyLocalEdit(operation: Operation) {
+        async applyLocalEdit(operation: Operation) {
             log('[DocumentService] Applying local edit', operation);
             if (state.status !== 'synced' && state.status !== 'optimistic') {
                 log('[DocumentService] Cannot apply local edit. Document not in a valid state.', state);
@@ -287,7 +287,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             notifyAll();
 
             try {
-                deps.connection.sendMessage(APPLY_OPERATION_COMMAND, operation);
+                await deps.connection.sendMessage(APPLY_OPERATION_COMMAND, operation);
                 log('[DocumentService] Successfully sent operation to server', operation);
             } catch (error) {
                 log('[DocumentService] Error sending operation to server:', error);
@@ -323,7 +323,13 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             teardownSignalRHandlers();
             if (state.status !== 'loading' && state.status !== 'error') {
                 try {
-                   await deps.connection.sendMessage(LEAVE_DOCUMENT_GROUP_COMMAND, state.document.id);
+                    if (deps.connection.isConnected()) {
+                        console.log('[DocumentService] Leaving document group:', state.document.id);
+                        await deps.connection.sendMessage(LEAVE_DOCUMENT_GROUP_COMMAND, state.document.id);
+                    } else {
+                        console.log('[DocumentService] Skipping leave document group. Connection not established.');
+                    }
+
                 } catch (error) {
                      log('[DocumentService] Error leaving document group:', error);
                 }

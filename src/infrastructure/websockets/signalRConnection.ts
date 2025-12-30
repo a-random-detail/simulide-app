@@ -85,6 +85,10 @@ export function createSignalRConnection(hubUrl: string): WebSocketConnection {
 
         getConnectionId(): string | null {
             return connection.connectionId;
+        },
+
+        isConnected(): boolean {
+            return connection.state === signalR.HubConnectionState.Connected;
         }
     };
 }

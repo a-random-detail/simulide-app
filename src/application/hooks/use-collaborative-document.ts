@@ -12,8 +12,9 @@ export function useCollaborativeDocument(documentId: string) {
 
     const lastSentContentRef = useRef<string>('');
     const lastSentVersionRef = useRef<number>(0);
+    let cleanupFn: (() => void) | null = null;
 
-    const sendOperation = useCallback(() => {
+    const sendOperation = useCallback(async () => {
         if (!serviceRef.current) {
             console.warn('[useCollaborativeDocument] No document service available to send operation');
             return;
@@ -29,10 +30,10 @@ export function useCollaborativeDocument(documentId: string) {
             return;
         }
 
-        const op = calculateOperation(lastSentContentRef.current, localContent, lastSentVersionRef.current);
+        const op = calculateOperation(state.document.id, lastSentContentRef.current, localContent, lastSentVersionRef.current);
         if (op) {
             console.log('[useCollaborativeDocument] Sending operation to server:', op);
-            serviceRef.current.applyLocalEdit(op);
+            await serviceRef.current.applyLocalEdit(op);
         }
 
         lastSentContentRef.current = localContent;
@@ -66,11 +67,16 @@ export function useCollaborativeDocument(documentId: string) {
 
         setup().then(cleanup => {
             console.log('[useCollaborativeDocument] Document service setup complete');
-            if (cleanup) cleanup();
+            if (cleanup) cleanupFn = cleanup;
         }).catch((e) => {
             console.error('[useCollaborativeDocument] Error setting up document service:', e);
             setState({ status: 'error', error: e as Error });
         });
+
+        return () => {
+            console.log('[useCollaborativeDocument] Cleaning up document service');
+            if (cleanupFn) cleanupFn();
+        };
     }, [documentId]);
 
     useEffect(() => {
@@ -105,6 +111,7 @@ export function useCollaborativeDocument(documentId: string) {
 }
 
 function calculateOperation(
+    documentId: string,
     oldContent: string,
     newContent: string,
     version: number): Operation | null {
