@@ -244,9 +244,9 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                 pendingOperations = [];
                 notifyAll();
 
-                deps.connection.connect();
+                await deps.connection.connect();
                 setupSignalRHandlers();
-                deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
+                await deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
                 log('[DocumentService] Joined document group', documentId);
 
             } catch (error) {

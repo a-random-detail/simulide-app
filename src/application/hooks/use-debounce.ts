@@ -1,19 +1,51 @@
-import { useEffect, useRef } from "react";
+import {useCallback, useEffect, useRef} from "react";
 
-const useDebounce = (callback: () => void, delay: number, dependencies: any[]) => {
+// @ts-ignore
+export function useDebounceCallback<T extends (...args: any[]) => any> (callback: T, delay: number = 500) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const callbackRef = useRef<T>(callback);
 
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    callbackRef.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    return () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+    }
+  }, []);
+
+  const schedule = useCallback((...args: Parameters<T>) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
 
     timerRef.current = setTimeout(() => {
-      callback();
+      callbackRef.current(...args);
+      timerRef.current = null;
     }, delay);
+  }, [delay]);
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, dependencies);
+  const flush = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const cancel = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return { schedule, flush, cancel};
 };
 
-export default useDebounce;
+export default useDebounceCallback;
+
+
+

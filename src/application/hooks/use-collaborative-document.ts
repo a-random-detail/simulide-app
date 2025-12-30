@@ -3,49 +3,141 @@ import {DocumentState, Operation} from "../../core/document/types.ts";
 import {documentService} from "../services/documentService.ts";
 import {createDocumentHttpClient} from "../services/documentHttpClient.ts";
 import {API_BASE} from "../services/service-constants.ts";
-import {createSignalRConnection} from "../../infrastructure/websockets/types.ts";
+import {createSignalRConnection} from "../../infrastructure/websockets/signalRConnection.ts";
+import useDebounceCallback from "./use-debounce.ts";
 
 export function useCollaborativeDocument(documentId: string) {
     const [state, setState] = useState<DocumentState>({ status: 'loading' });
+    const [localContent, setLocalContent] = useState<string>('');
+
+    const lastSentContentRef = useRef<string>('');
+    const lastSentVersionRef = useRef<number>(0);
+
+    const sendOperation = useCallback(() => {
+        if (!serviceRef.current) {
+            console.warn('[useCollaborativeDocument] No document service available to send operation');
+            return;
+        }
+
+        if (localContent === lastSentContentRef.current) {
+            console.log('[useCollaborativeDocument] No changes to send to server');
+            return;
+        }
+
+        if (state.status !== 'synced' && state.status !== 'optimistic') {
+            console.log('[useCollaborativeDocument] Document is not in a state to send operations:', state.status);
+            return;
+        }
+
+        const op = calculateOperation(lastSentContentRef.current, localContent, lastSentVersionRef.current);
+        if (op) {
+            console.log('[useCollaborativeDocument] Sending operation to server:', op);
+            serviceRef.current.applyLocalEdit(op);
+        }
+
+        lastSentContentRef.current = localContent;
+    }, [localContent, state]);
 
     const serviceRef = useRef<ReturnType<typeof documentService> | null>(null);
 
+    const { schedule, flush, cancel } = useDebounceCallback(sendOperation, 500);
+
     useEffect(() => {
-        let unsubscribe: (() => void) | undefined;
-        let service: ReturnType<typeof documentService> | undefined;
+        console.log('[useCollaborativeDocument] Setting up document service for documentId:', documentId);
 
         const setup = async () => {
             const httpClient = createDocumentHttpClient(API_BASE);
             const connection = createSignalRConnection(`${API_BASE}/collaboration`);
 
-            service = documentService({connection, httpClient});
+            const service = documentService({connection, httpClient});
             serviceRef.current = service;
 
-            unsubscribe = service.subscribe(setState);
+            const unsubscribe = service.subscribe(setState);
+            console.log('[useCollaborativeDocument] Loading document:', documentId);
             await service.loadDocument(documentId);
+            console.log('[useCollaborativeDocument] Document loaded and service setup complete');
+
+            return () => {
+                console.log('[useCollaborativeDocument] Unsubscribing from document service');
+                unsubscribe();
+                service.cleanup();
+            };
         };
 
-        setup().catch((e) => {
+        setup().then(cleanup => {
+            console.log('[useCollaborativeDocument] Document service setup complete');
+            if (cleanup) cleanup();
+        }).catch((e) => {
             console.error('[useCollaborativeDocument] Error setting up document service:', e);
             setState({ status: 'error', error: e as Error });
         });
-
-        return () => {
-            console.log('[useCollaborativeDocument] Unsubscribing from document service');
-            if (unsubscribe) unsubscribe();
-            if (service) service.cleanup().catch((e) => {
-                console.error('[useCollaborativeDocument] Error during service cleanup:', e);
-            });
-        };
     }, [documentId]);
 
-    const applyEdit = useCallback((op: Operation) => {
-        serviceRef.current?.applyLocalEdit(op);
-    }, []);
+    useEffect(() => {
+        if (state.status === 'synced') {
+            lastSentContentRef.current = state.document.content;
+            lastSentVersionRef.current = state.document.version;
+            setLocalContent(state.document.content);
+            cancel();
+        }
+    }, [state, cancel]);
+
+    const applyEdit = useCallback((newContent: string) => {
+        console.log('[useCollaborativeDocument] Applying local edit', newContent);
+        setLocalContent(newContent);
+        schedule();
+        console.log('[useCollaborativeDocument] Local edit applied');
+    }, [schedule]);
 
     const resyncDocument = useCallback(() => {
+        console.log('[useCollaborativeDocument] Resyncing document with server');
         serviceRef.current?.resyncDocument();
+        console.log('[useCollaborativeDocument] Document resync requested');
     }, []);
 
-    return {state, applyEdit, resyncDocument};
+    return {
+        state,
+        applyEdit,
+        resyncDocument,
+        localContent,
+        flush
+    };
+}
+
+function calculateOperation(
+    oldContent: string,
+    newContent: string,
+    version: number): Operation | null {
+    let position = 0;
+    while (
+        position < oldContent.length &&
+        position < newContent.length &&
+        oldContent[position] === newContent[position]
+        ) {
+        position++;
+    }
+
+    if (newContent.length > oldContent.length) {
+        const insertedText = newContent.slice(position, newContent.length - (oldContent.length - position));
+        return {
+            documentId: '',
+            type: 'insert',
+            content: insertedText,
+            position,
+            version: version + 1,
+        };
+    }
+
+    if (newContent.length < oldContent.length) {
+        const deleteLength = oldContent.length - newContent.length;
+        return {
+            documentId: '',
+            type: 'delete',
+            position,
+            length: deleteLength,
+            version: version + 1,
+        };
+    }
+
+    return null;
 }

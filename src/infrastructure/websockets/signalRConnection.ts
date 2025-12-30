@@ -20,36 +20,52 @@ export function createSignalRConnection(hubUrl: string): WebSocketConnection {
 
     const handlers = new Map<string, Set<Function>>();
 
+
     return {
         async connect() {
             if (connection.state === signalR.HubConnectionState.Disconnected) {
+                console.log('[SignalRConnection] Connecting to SignalR hub at', hubUrl);
                 await connection.start();
+                console.log('[SignalRConnection] Connected to SignalR hub');
             }
         },
 
         async disconnect() {
            if (connection.state !== signalR.HubConnectionState.Disconnected) {
+                console.log('[SignalRConnection] Disconnecting from SignalR hub');
                 await connection.stop();
+                console.log('[SignalRConnection] Disconnected from SignalR hub');
            }
         },
 
-        sendMessage(method: string, ...args: any[]) {
-            connection.invoke(method, ...args).catch(err => console.error(`Error invoking ${method}:`, err));
+        async sendMessage(method: string, ...args: any[]) {
+            try {
+                console.log('[SignalRConnection] Sending message to SignalR hub:', method, args);
+                await connection.invoke(method, ...args).catch(err => console.error(`Error invoking ${method}:`, err));
+                console.log('[SignalRConnection] Message sent:', method);
+            } catch (e) {
+                console.error('[SignalRConnection] Error sending message:', e);
+                throw e;
+            }
         },
 
         onMessage(method: string, handler: (...args: any[]) => void) {
+            console.log('[SignalRConnection] Registering handler for message:', method);
             connection.on(method, handler);
             if (!handlers.has(method)) {
                handlers.set(method, new Set());
             }
             handlers.get(method)!.add(handler);
+            console.log('[SignalRConnection] Registered handler for message:', method);
         },
 
         offMessage(method: string, handler: (...args: any[]) => void) {
+            console.log('[SignalRConnection] Unregistering handler for message:', method);
             connection.off(method, handler);
 
             const methodHandlers = handlers.get(method);
             if (methodHandlers) methodHandlers.delete(handler);
+            console.log('[SignalRConnection] Unregistered handler for message:', method);
         },
 
         getState() {

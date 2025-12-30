@@ -7,7 +7,10 @@ import {useCollaborativeDocument} from "../../application/hooks/use-collaborativ
 export function DocumentPage() {
     const { documentId } = useParams<{ documentId: string }>();
     const navigate = useNavigate();
-    const { state, applyEdit, resyncDocument } = useCollaborativeDocument(documentId!);
+    const { state, applyEdit, resyncDocument, localContent, flush} = useCollaborativeDocument(documentId!);
+
+
+    console.log('[DocumentPage] Current document state:', state, documentId);
 
     if (state.status === 'loading') {
         return (
@@ -38,10 +41,10 @@ export function DocumentPage() {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <ActiveUsers activeUsers={state.activeUsers} />
                 <Editor
-                    content={state.document.content}
+                    content={localContent}
                     onEdit={applyEdit}
+                    onFlush={flush}
                     disabled={state.status === 'syncing'}
-                    version={state.document.version}
                     placeholder="Start collaborating..."
                 />
             </div>

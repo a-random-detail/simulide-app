@@ -6,7 +6,7 @@ interface ActiveUsersProps {
 }
 
 export function ActiveUsers( { activeUsers, currentConnectionId }: ActiveUsersProps) {
-    if (activeUsers.length === 0) {
+    if (!activeUsers || activeUsers.length === 0) {
         return null;
     }
 

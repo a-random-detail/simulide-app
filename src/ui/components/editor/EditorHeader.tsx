@@ -54,7 +54,7 @@ export function EditorHeader({ state, onResync }: EditorHeaderProps) {
                 onClick={onResync}
                 disabled={state.status === 'syncing' || state.status === 'loading' }
                 title="Resync Document"
-                className="px-3 py-1.5 bg-gray-100 border border-gray-300 rounded text-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                className="px-3 py-1.5 bg-indigo-600 border border-gray-300 rounded text-lg hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                 Resync
             </button>
         </div>
