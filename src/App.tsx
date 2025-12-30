@@ -1,14 +1,17 @@
 import './App.css'
-import { CodeEditor } from './code-editor/CodeEditor';
-import { DocumentProvider } from './context/DocumentContext';
 import {Route, Routes} from "react-router";
+import {HomePage} from "./ui/pages/HomePage.tsx";
+import {DocumentPage} from "./ui/pages/DocumentPage.tsx";
 
 
 const routes = [
     {
-        paths: ["/","document/:id"],
-        element: <CodeEditor />,
-        needsDocumentProvider: true,
+        paths: ["/"],
+        element: <HomePage />
+    },
+    {
+        paths: ["/documents/:documentId"],
+        element: <DocumentPage />
     },
 ];
 function App() {
@@ -20,9 +23,7 @@ function App() {
                     <Route
                         key={path}
                         path={path}
-                        element={ route.needsDocumentProvider ?
-                            <DocumentProvider>{route.element}</DocumentProvider>
-                            : route.element } />
+                        element={route.element} />
                 )))}
             </Routes>
         </>

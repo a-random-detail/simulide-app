@@ -1,7 +1,7 @@
 import * as signalR from "@microsoft/signalr";
-import { API_BASE, PARTY_CHANGED_COMMAND, RECEIVE_OPERATION_COMMAND } from "./service-constants";
-import { CodeOperation } from "../types/CodeOperation";
-import { PartyChangeEvent } from "../types/PartyChangedEvent";
+import { API_BASE, PARTY_CHANGED_COMMAND, RECEIVE_OPERATION_COMMAND } from "./service-constants.ts";
+import { CodeOperation } from "../../types/CodeOperation.ts";
+import { PartyChangeEvent } from "../../types/PartyChangedEvent.ts";
 
 const SIGNALR_URL = `${API_BASE}/collaboration`;
 
