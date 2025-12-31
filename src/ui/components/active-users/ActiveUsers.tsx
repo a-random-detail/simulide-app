@@ -1,20 +1,16 @@
 import {ActiveUser} from "../../../core/document/types.ts";
+import {useActiveUsers} from "../../../application/ActiveUsersContext.tsx";
 
 interface ActiveUsersProps {
-    activeUsers: ActiveUser[];
-    currentConnectionId?: string;
+    currentConnectionId: string;
 }
-
-export function ActiveUsers( { activeUsers, currentConnectionId }: ActiveUsersProps) {
-    if (!activeUsers || activeUsers.length === 0) {
-        return null;
-    }
-
+export function ActiveUsers({currentConnectionId}: ActiveUsersProps) {
+    const activeUsers = useActiveUsers();
     return (
         <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-50 border-b border-gray-200">
             <span className="text-sm font-medium text-gray-600">Active:</span>
             <div className="flex gap-2">
-                {activeUsers.map((user) => (
+                    {activeUsers.map((user) => (
                     <div
                         key={user.userId}
                         title={user.userId}

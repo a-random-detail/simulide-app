@@ -247,15 +247,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
 
                 await deps.connection.connect();
                 setupSignalRHandlers();
-                const joinResult = await deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
-                log('[DocumentService] Joined document group response', joinResult);
-                if (joinResult?.data?.activeUsers) {
-                    activeUsers = joinResult.data.activeUsers;
-                    state = {
-                        ...state,
-                        activeUsers: activeUsers
-                    };
-                }
+                await deps.connection.sendMessage(JOIN_DOCUMENT_GROUP_COMMAND, documentId);
                 log('[DocumentService] Joined document group', documentId);
 
             } catch (error) {

@@ -3,6 +3,7 @@ import {Editor} from "../components/editor/Editor.tsx";
 import {EditorHeader} from "../components/editor/EditorHeader.tsx";
 import {ActiveUsers} from "../components/active-users/ActiveUsers.tsx";
 import {useCollaborativeDocument} from "../../application/hooks/use-collaborative-document.ts";
+import { ActiveUsersContext } from "../../application/ActiveUsersContext.tsx";
 
 export function DocumentPage() {
     const { documentId } = useParams<{ documentId: string }>();
@@ -34,20 +35,23 @@ export function DocumentPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-100">
-            <EditorHeader state={state} onResync={resyncDocument} />
-            {state.status === 'syncing' && <div>Syncing changes...</div>}
+        <ActiveUsersContext.Provider value={state.activeUsers ?? []}>
+            <div className="flex flex-col h-screen bg-gray-100">
+                <EditorHeader state={state} onResync={resyncDocument} />
+                {state.status === 'syncing' && <div>Syncing changes...</div>}
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <ActiveUsers activeUsers={state.activeUsers} />
-                <Editor
-                    content={localContent}
-                    onEdit={applyEdit}
-                    onFlush={flush}
-                    disabled={state.status === 'syncing'}
-                    placeholder="Start collaborating..."
-                />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <ActiveUsers activeUsers={state.activeUsers} />
+                    <Editor
+                        content={localContent}
+                        onEdit={applyEdit}
+                        onFlush={flush}
+                        disabled={state.status === 'syncing'}
+                        placeholder="Start collaborating..."
+                    />
+                </div>
             </div>
-        </div>
+
+        </ActiveUsersContext.Provider>
     );
 }
