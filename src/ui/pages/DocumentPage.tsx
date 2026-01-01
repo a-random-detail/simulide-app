@@ -4,12 +4,23 @@ import {EditorHeader} from "../components/editor/EditorHeader.tsx";
 import {ActiveUsers} from "../components/active-users/ActiveUsers.tsx";
 import {useCollaborativeDocument} from "../../application/hooks/use-collaborative-document.ts";
 import { ActiveUsersContext } from "../../application/ActiveUsersContext.tsx";
+import { DocumentStateContext } from "../../application/DocumentStateContext.tsx";
+import {ConnectionIdContext} from "../../application/ConnectionIdContext.tsx";
+import {LocalContentContext} from "../../application/LocalContentContext.tsx";
+import {DocumentActionsContext} from "../../application/DocumentActionsContext.tsx";
 
 export function DocumentPage() {
     const { documentId } = useParams<{ documentId: string }>();
     const navigate = useNavigate();
-    const { state, applyEdit, resyncDocument, localContent, flush} = useCollaborativeDocument(documentId!);
-
+    const {
+        state,
+        setLocalContent,
+        localContent,
+        connectionId,
+        applyEdit,
+        flush,
+        resyncDocument
+    } = useCollaborativeDocument(documentId!);
 
     console.log('[DocumentPage] Current document state:', state, documentId);
 
@@ -35,23 +46,30 @@ export function DocumentPage() {
     }
 
     return (
-        <ActiveUsersContext.Provider value={state.activeUsers ?? []}>
-            <div className="flex flex-col h-screen bg-gray-100">
-                <EditorHeader state={state} onResync={resyncDocument} />
-                {state.status === 'syncing' && <div>Syncing changes...</div>}
+        <ConnectionIdContext.Provider value={connectionId ?? ""}>
+            <LocalContentContext.Provider value={{localContent, setLocalContent}}>
+                <DocumentActionsContext.Provider value={{applyEdit, flush, resyncDocument}}>
+                    <DocumentStateContext.Provider value={state}>
+                        <ActiveUsersContext.Provider value={state.activeUsers ?? []}>
+                            <div className="flex flex-col h-screen bg-gray-100">
+                                <EditorHeader onResync={resyncDocument} />
+                                {state.status === 'syncing' && <div>Syncing changes...</div>}
 
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <ActiveUsers activeUsers={state.activeUsers} />
-                    <Editor
-                        content={localContent}
-                        onEdit={applyEdit}
-                        onFlush={flush}
-                        disabled={state.status === 'syncing'}
-                        placeholder="Start collaborating..."
-                    />
-                </div>
-            </div>
-
-        </ActiveUsersContext.Provider>
+                                <div className="flex-1 flex flex-col overflow-hidden">
+                                    <ActiveUsers currentConnectionId={connectionId ?? ""}/>
+                                    <Editor
+                                        content={localContent}
+                                        onEdit={applyEdit}
+                                        onFlush={flush}
+                                        disabled={state.status === 'syncing'}
+                                        placeholder="Start collaborating..."
+                                    />
+                                </div>
+                            </div>
+                        </ActiveUsersContext.Provider>
+                    </DocumentStateContext.Provider>
+                </DocumentActionsContext.Provider>
+            </LocalContentContext.Provider>
+        </ConnectionIdContext.Provider>
     );
 }

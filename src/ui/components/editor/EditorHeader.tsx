@@ -1,11 +1,11 @@
-import {DocumentState} from "../../../core/document/types.ts";
+import {useDocumentState} from "../../../application/DocumentStateContext.tsx";
 
 interface EditorHeaderProps {
-    state: DocumentState;
     onResync: () => void;
 }
 
-export function EditorHeader({ state, onResync }: EditorHeaderProps) {
+export function EditorHeader({ onResync }: EditorHeaderProps) {
+    const state = useDocumentState();
     const getStatusDisplay = () => {
         switch (state.status) {
             case 'synced':

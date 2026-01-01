@@ -1,4 +1,3 @@
-import {ActiveUser} from "../../../core/document/types.ts";
 import {useActiveUsers} from "../../../application/ActiveUsersContext.tsx";
 
 interface ActiveUsersProps {

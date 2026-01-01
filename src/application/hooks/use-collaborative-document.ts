@@ -9,6 +9,7 @@ import useDebounceCallback from "./use-debounce.ts";
 export function useCollaborativeDocument(documentId: string) {
     const [state, setState] = useState<DocumentState>({ status: 'loading' });
     const [localContent, setLocalContent] = useState<string>('');
+    const [connectionId, setConnectionId] = useState<string | null>(null);
 
     const lastSentContentRef = useRef<string>('');
     const lastSentVersionRef = useRef<number>(0);
@@ -51,6 +52,7 @@ export function useCollaborativeDocument(documentId: string) {
             const connection = createSignalRConnection(`${API_BASE}/collaboration`);
 
             const service = documentService({connection, httpClient});
+            setConnectionId(connection.getConnectionId());
             serviceRef.current = service;
 
             const unsubscribe = service.subscribe(setState);
@@ -105,9 +107,11 @@ export function useCollaborativeDocument(documentId: string) {
 
     return {
         state,
+        connectionId,
         applyEdit,
         resyncDocument,
         localContent,
+        setLocalContent,
         flush
     };
 }
