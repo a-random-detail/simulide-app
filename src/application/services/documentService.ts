@@ -106,10 +106,13 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     function handleReceiveOperation(operation: Operation) {
         const myConnectionId = deps.connection.getConnectionId();
         log('[DocumentService] ReceiveOperation', {
+            operationId: operation.id,
             operation,
             currentState: state.status,
             currentVersion: state.status !== 'loading' && state.status !== 'error' ? state.document.version : 'N/A',
-            isOwnOperation: operation.userId === myConnectionId
+            isOwnOperation: operation.userId === myConnectionId,
+            connectionId: operation.userId,
+            myConnectionId
         });
 
         if (state.status === 'error' || state.status === 'loading') {
@@ -206,7 +209,10 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     }
 
     function handlePartyChanged(message: PartyChangedMessage) {
-       log('PartyChanged', message);
+       log('PartyChanged', {
+           ...message,
+           action: message.action,
+       });
 
        activeUsers = message.activeUsers;
        if (state.status !== 'loading' && state.status !== 'error') {

@@ -1,6 +1,6 @@
 export interface PartyChangedMessage {
     userId: string;
-    action: 'joined' | 'left';
+    action: 'join' | 'leave';
     activeUsers: Array<{
         userId: string;
         cursorPosition: number;
