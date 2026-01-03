@@ -19,6 +19,9 @@ export type CollaborativeDocument = {
 
 export function useCollaborativeDocument(documentId: string): CollaborativeDocument {
     const [state, setState] = useState<DocumentState>({ status: 'loading' });
+    const stateRef = useRef(state);
+    stateRef.current = state;
+
     const [localContent, setLocalContent] = useState<string>('');
     const [connectionId, setConnectionId] = useState<string | null>(null);
 
@@ -37,12 +40,12 @@ export function useCollaborativeDocument(documentId: string): CollaborativeDocum
             return;
         }
 
-        if (state.status !== 'synced' && state.status !== 'optimistic') {
-            console.log('[useCollaborativeDocument] Document is not in a state to send operations:', state.status);
+        if (stateRef.current.status !== 'synced' && stateRef.current.status !== 'optimistic') {
+            console.log('[useCollaborativeDocument] Document is not in a state to send operations:', stateRef.current.status);
             return;
         }
 
-        const op = calculateOperation(state.document.id, lastSentContentRef.current, localContent, lastSentVersionRef.current);
+        const op = calculateOperation(stateRef.current.document.id, lastSentContentRef.current, localContent, lastSentVersionRef.current);
         if (op) {
             console.log('[useCollaborativeDocument] Sending operation to server:', op);
             await serviceRef.current.applyLocalEdit(op);
@@ -62,7 +65,19 @@ export function useCollaborativeDocument(documentId: string): CollaborativeDocum
             const httpClient = createDocumentHttpClient(API_BASE);
             const connection = createSignalRConnection(`${API_BASE}/collaboration`);
 
-            const service = documentService({connection, httpClient, state, setState});
+            const service = documentService({
+                connection,
+                httpClient,
+                get state() { return stateRef.current },
+                setState: (updater: DocumentState | ((prev: DocumentState) => DocumentState)) => {
+                    setState(prev => {
+                        const next = typeof updater === 'function' ? updater(prev) : updater;
+                        stateRef.current = next;
+                        return next;
+                    });
+                }
+            });
+
             setConnectionId(connection.getConnectionId());
             serviceRef.current = service;
 
@@ -93,10 +108,10 @@ export function useCollaborativeDocument(documentId: string): CollaborativeDocum
     }, [documentId]);
 
     useEffect(() => {
-        if (state.status === 'synced') {
-            lastSentContentRef.current = state.document.content;
-            lastSentVersionRef.current = state.document.version;
-            setLocalContent(state.document.content);
+        if (stateRef.current.status === 'synced' && stateRef.current.document.version !== lastSentVersionRef.current) {
+            lastSentContentRef.current = stateRef.current.document.content;
+            lastSentVersionRef.current = stateRef.current.document.version;
+            setLocalContent(stateRef.current.document.content);
             cancel();
         }
     }, [state, cancel]);

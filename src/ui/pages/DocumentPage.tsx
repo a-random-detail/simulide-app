@@ -4,10 +4,10 @@ import {EditorHeader} from "../components/editor/EditorHeader.tsx";
 import {ActiveUsers} from "../components/active-users/ActiveUsers.tsx";
 import { ActiveUsersContext } from "../../application/ActiveUsersContext.tsx";
 import { DocumentStateContext, useDocumentState } from "../../application/DocumentStateContext.tsx";
-import {ConnectionIdContext} from "../../application/ConnectionIdContext.tsx";
 import {LocalContentContext} from "../../application/LocalContentContext.tsx";
 import {DocumentActionsContext} from "../../application/DocumentActionsContext.tsx";
 import {useDocument} from "../../application/DocumentStateProvider.tsx";
+import { useEffect } from "react";
 
 export function DocumentPage() {
     const state = useDocumentState();
@@ -23,6 +23,17 @@ export function DocumentPage() {
     const navigate = useNavigate();
 
     console.log('[DocumentPage] Current document state:', state, documentId);
+
+    useEffect(() => {
+        if (state.status === 'loading' || state.status === 'error')
+            return;
+
+        console.log('[DocumentPage] (effect) Document version changed:', state.document?.version);
+    }, [state]);
+
+    useEffect(() => {
+        console.log('[DocumentPage] State after edit:', state);
+    }, [state]);
 
     if (state.status === 'loading') {
         return (
@@ -46,30 +57,28 @@ export function DocumentPage() {
     }
 
     return (
-        <ConnectionIdContext.Provider value={connectionId ?? ""}>
-            <LocalContentContext.Provider value={{localContent, setLocalContent}}>
-                <DocumentActionsContext.Provider value={{applyEdit, flush, resyncDocument}}>
-                    <DocumentStateContext.Provider value={state}>
-                        <ActiveUsersContext.Provider value={state.activeUsers ?? []}>
-                            <div className="flex flex-col h-screen bg-gray-100">
-                                <EditorHeader onResync={resyncDocument} />
-                                {state.status === 'syncing' && <div>Syncing changes...</div>}
+        <LocalContentContext.Provider value={{localContent, setLocalContent}}>
+            <DocumentActionsContext.Provider value={{applyEdit, flush, resyncDocument}}>
+                <DocumentStateContext.Provider value={state}>
+                    <ActiveUsersContext.Provider value={state.activeUsers ?? []}>
+                        <div className="flex flex-col h-screen bg-gray-100">
+                            <EditorHeader onResync={resyncDocument} />
+                            {state.status === 'syncing' && <div>Syncing changes...</div>}
 
-                                <div className="flex-1 flex flex-col overflow-hidden">
-                                    <ActiveUsers currentConnectionId={connectionId ?? ""}/>
-                                    <Editor
-                                        content={localContent}
-                                        onEdit={applyEdit}
-                                        onFlush={flush}
-                                        disabled={state.status === 'syncing'}
-                                        placeholder="Start collaborating..."
-                                    />
-                                </div>
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                                <ActiveUsers currentConnectionId={connectionId ?? ""}/>
+                                <Editor
+                                    content={localContent}
+                                    onEdit={applyEdit}
+                                    onFlush={flush}
+                                    disabled={state.status === 'syncing'}
+                                    placeholder="Start collaborating..."
+                                />
                             </div>
-                        </ActiveUsersContext.Provider>
-                    </DocumentStateContext.Provider>
-                </DocumentActionsContext.Provider>
-            </LocalContentContext.Provider>
-        </ConnectionIdContext.Provider>
+                        </div>
+                    </ActiveUsersContext.Provider>
+                </DocumentStateContext.Provider>
+            </DocumentActionsContext.Provider>
+        </LocalContentContext.Provider>
     );
 }
