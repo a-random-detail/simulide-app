@@ -227,6 +227,24 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     function setupSignalRHandlers() {
         deps.connection.onMessage(PARTY_CHANGED_COMMAND, handlePartyChanged);
         deps.connection.onMessage(RECEIVE_OPERATION_COMMAND, handleReceiveOperation);
+        deps.connection.onMessage(RECEIVE_OPERATION_COMMAND, (op: any) => {
+            console.log("[ReceiveOperation] raw:", op);
+
+            const type =
+                typeof op.type === "string"
+                    ? op.type.toLowerCase()
+                    : op.type === 0
+                        ? "insert"
+                        : op.type === 1
+                            ? "delete"
+                            : "none";
+
+            const normalized = { ...op, type };
+
+            console.log("[ReceiveOperation] normalized:", normalized);
+
+            // then dispatch/apply it
+        });
         log('SignalR event handlers registered.');
     }
 

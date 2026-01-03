@@ -1,4 +1,4 @@
-export type OperationType = "insert" | "delete";
+export type OperationType = "Insert" | "Delete";
 
 export interface Document {
     id: string;
@@ -8,13 +8,15 @@ export interface Document {
 }
 
 export interface Operation {
+    id?: string;
     documentId: string;
     type: OperationType;
-    content?: string;
     position: number;
-    length?: number;
+    content?: string;
     version: number;
+    length?: number;
     userId?: string;
+    createdAt?: string;
 }
 
 export interface ActiveUser {
