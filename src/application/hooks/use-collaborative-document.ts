@@ -2,7 +2,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {DocumentState, Operation} from "../../core/document/types.ts";
 import {documentService} from "../services/documentService.ts";
 import {createDocumentHttpClient} from "../services/documentHttpClient.ts";
-import {API_BASE} from "../services/service-constants.ts";
+import {API_BASE, DELETE_OPERATION_TYPE, INSERT_OPERATION_TYPE} from "../services/service-constants.ts";
 import {createSignalRConnection} from "../../infrastructure/websockets/signalRConnection.ts";
 import useDebounceCallback from "./use-debounce.ts";
 
@@ -134,7 +134,7 @@ function calculateOperation(
         const insertedText = newContent.slice(position, newContent.length - (oldContent.length - position));
         return {
             documentId: documentId,
-            type: 'insert',
+            type: INSERT_OPERATION_TYPE,
             content: insertedText,
             position,
             version: version,
@@ -146,7 +146,7 @@ function calculateOperation(
         const deleteLength = oldContent.length - newContent.length;
         return {
             documentId: documentId,
-            type: 'delete',
+            type: DELETE_OPERATION_TYPE,
             position,
             length: deleteLength,
             version: version,

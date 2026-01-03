@@ -1,4 +1,6 @@
-export type OperationType = "Insert" | "Delete";
+import { INSERT_OPERATION_TYPE, DELETE_OPERATION_TYPE } from '../../application/services/service-constants';
+
+export type OperationType = typeof INSERT_OPERATION_TYPE | typeof DELETE_OPERATION_TYPE;
 
 export interface Document {
     id: string;

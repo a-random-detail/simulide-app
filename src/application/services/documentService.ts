@@ -1,12 +1,15 @@
-import {DocumentState, Operation, ActiveUser, Document} from "../../core/document/types.ts";
+import {DocumentState, Operation, ActiveUser} from "../../core/document/types.ts";
 import {WebSocketConnection, PartyChangedMessage} from "../../infrastructure/websockets/types.ts";
 import {applyOperation} from "../../core/document/operations.ts";
 import {DocumentHttpClient} from "./documentHttpClient.ts";
 import {
     APPLY_OPERATION_COMMAND,
+    DELETE_OPERATION_TYPE,
+    INSERT_OPERATION_TYPE,
     JOIN_DOCUMENT_GROUP_COMMAND,
     LEAVE_DOCUMENT_GROUP_COMMAND,
-    PARTY_CHANGED_COMMAND, RECEIVE_OPERATION_COMMAND
+    PARTY_CHANGED_COMMAND,
+    RECEIVE_OPERATION_COMMAND,
 } from "./service-constants.ts";
 
 export function documentService(deps: { connection: WebSocketConnection, httpClient: DocumentHttpClient}){
@@ -119,45 +122,10 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             log('[DocumentService] Ignoring operation. Document in invalid state.', state);
             return;
         }
-        if (operation.userId === myConnectionId) {
-            if (pendingOperations.length > 0) {
-                const ackedOp = pendingOperations[0];
-
-                if (ackedOp.version === operation.version) {
-                    pendingOperations.shift();
-                    log('[DocumentService] Acknowledged own operation', {
-                        operation: ackedOp,
-                        remainingPending: pendingOperations.length
-                    });
-
-                    if (state.status === 'optimistic') {
-                        if (pendingOperations.length === 0) {
-                            state = {
-                                status: 'synced',
-                                document: state.document,
-                                serverDocument: state.serverDocument || {} as Document,
-                                activeUsers: state.activeUsers
-                            };
-                        }
-                    } else {
-                        state = {
-                            status: 'optimistic',
-                            document: state.document,
-                            serverDocument: state.status === 'syncing' ? {} as Document : state.serverDocument,
-                            pendingOperation: pendingOperations[0],
-                            activeUsers: state.activeUsers
-                        };
-                    }
-
-                }
-                notifyAll();
-            }
-            return;
-        }
 
         if (state.status === 'optimistic') {
             log('[DocumentService] Received operation while in optimistic state. Transitioning to syncing state.');
-            resyncDocument();
+            // resyncDocument();
             return;
         }
 
@@ -166,9 +134,11 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
 
             if (operation.version === currentVersion) {
                 log('[DocumentService] Applying operation to synced document in order');
+                log('[DocumentService] Current document before operation:', state.document);
 
                 try {
                     const newDoc = applyOperation(state.document, operation);
+                    log('[DocumentService] New document after applying operation:', newDoc);
                     state = {
                         status: 'synced',
                         document: newDoc,
@@ -178,18 +148,18 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                     return;
                 } catch (error) {
                     log('[DocumentService] Error applying operation:', error);
-                    resyncDocument();
+                    // resyncDocument();
                     return;
                 }
             }
 
             if (operation.version > currentVersion) {
-                log('[DocumentService] Operation version ahead of current document version. Resyncing document.', {
+                log('[DocumentService] Operation version ahead of current document version.', {
                     received: operation.version,
                     current: currentVersion,
                     gap: operation.version - currentVersion
                 });
-                resyncDocument();
+                // resyncDocument();
                 return;
             }
             if (operation.version < currentVersion) {
@@ -234,9 +204,9 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                 typeof op.type === "string"
                     ? op.type.toLowerCase()
                     : op.type === 0
-                        ? "insert"
+                        ? INSERT_OPERATION_TYPE
                         : op.type === 1
-                            ? "delete"
+                            ? DELETE_OPERATION_TYPE
                             : "none";
 
             const normalized = { ...op, type };

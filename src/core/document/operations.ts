@@ -1,19 +1,23 @@
 import {Document, Operation} from "./types.ts";
+import {DELETE_OPERATION_TYPE, INSERT_OPERATION_TYPE} from "../../application/services/service-constants.ts";
 
 export function applyOperation(
     document: Document,
     operation: Operation
 ): Document {
+    console.log("[applyOperation] Applying operation:", operation);
     let newContent = document.content;
 
     switch (operation.type) {
-        case "insert":
+        case INSERT_OPERATION_TYPE:
+            console.log("[applyOperation] Applying insert operation:", operation);
             newContent =
                 newContent.slice(0, operation.position) +
                 (operation.content || "") +
                 newContent.slice(operation.position);
             break;
-        case "delete":
+        case DELETE_OPERATION_TYPE:
+            console.log("[applyOperation] Applying delete operation:", operation);
             newContent =
                 newContent.slice(0, operation.position) +
                 newContent.slice(operation.position + (operation.length || 0));

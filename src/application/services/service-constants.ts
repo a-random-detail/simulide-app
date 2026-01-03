@@ -5,6 +5,9 @@ export const APPLY_OPERATION_COMMAND = "ApplyOperation";
 export const JOIN_DOCUMENT_GROUP_COMMAND = "JoinDocumentGroup";
 export const LEAVE_DOCUMENT_GROUP_COMMAND = "LeaveDocumentGroup";
 
+export const INSERT_OPERATION_TYPE = "Insert";
+export const DELETE_OPERATION_TYPE = "Delete";
+
 export interface ServiceError {
     message: string;
 }
