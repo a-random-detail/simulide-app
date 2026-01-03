@@ -1,26 +1,26 @@
-import {useNavigate, useParams} from "react-router";
+import {useNavigate} from "react-router";
 import {Editor} from "../components/editor/Editor.tsx";
 import {EditorHeader} from "../components/editor/EditorHeader.tsx";
 import {ActiveUsers} from "../components/active-users/ActiveUsers.tsx";
-import {useCollaborativeDocument} from "../../application/hooks/use-collaborative-document.ts";
 import { ActiveUsersContext } from "../../application/ActiveUsersContext.tsx";
-import { DocumentStateContext } from "../../application/DocumentStateContext.tsx";
+import { DocumentStateContext, useDocumentState } from "../../application/DocumentStateContext.tsx";
 import {ConnectionIdContext} from "../../application/ConnectionIdContext.tsx";
 import {LocalContentContext} from "../../application/LocalContentContext.tsx";
 import {DocumentActionsContext} from "../../application/DocumentActionsContext.tsx";
+import {useDocument} from "../../application/DocumentStateProvider.tsx";
 
 export function DocumentPage() {
-    const { documentId } = useParams<{ documentId: string }>();
-    const navigate = useNavigate();
+    const state = useDocumentState();
     const {
-        state,
-        setLocalContent,
-        localContent,
+        documentId,
         connectionId,
+        localContent,
+        setLocalContent,
         applyEdit,
         flush,
-        resyncDocument
-    } = useCollaborativeDocument(documentId!);
+        resyncDocument,
+    } = useDocument();
+    const navigate = useNavigate();
 
     console.log('[DocumentPage] Current document state:', state, documentId);
 

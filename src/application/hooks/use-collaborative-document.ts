@@ -6,7 +6,18 @@ import {API_BASE, DELETE_OPERATION_TYPE, INSERT_OPERATION_TYPE} from "../service
 import {createSignalRConnection} from "../../infrastructure/websockets/signalRConnection.ts";
 import useDebounceCallback from "./use-debounce.ts";
 
-export function useCollaborativeDocument(documentId: string) {
+export type CollaborativeDocument = {
+    documentId: string;
+    state: DocumentState;
+    connectionId: string | null;
+    localContent: string;
+    setLocalContent: (content: string) => void;
+    applyEdit: (newContent: string) => void;
+    flush: () => void;
+    resyncDocument: () => void;
+};
+
+export function useCollaborativeDocument(documentId: string): CollaborativeDocument {
     const [state, setState] = useState<DocumentState>({ status: 'loading' });
     const [localContent, setLocalContent] = useState<string>('');
     const [connectionId, setConnectionId] = useState<string | null>(null);
@@ -51,7 +62,7 @@ export function useCollaborativeDocument(documentId: string) {
             const httpClient = createDocumentHttpClient(API_BASE);
             const connection = createSignalRConnection(`${API_BASE}/collaboration`);
 
-            const service = documentService({connection, httpClient});
+            const service = documentService({connection, httpClient, state, setState});
             setConnectionId(connection.getConnectionId());
             serviceRef.current = service;
 
@@ -106,6 +117,7 @@ export function useCollaborativeDocument(documentId: string) {
     }, []);
 
     return {
+        documentId,
         state,
         connectionId,
         applyEdit,

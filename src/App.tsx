@@ -2,6 +2,7 @@ import './App.css'
 import {Route, Routes} from "react-router";
 import {HomePage} from "./ui/pages/HomePage.tsx";
 import {DocumentPage} from "./ui/pages/DocumentPage.tsx";
+import {DocumentStateProvider} from "./application/DocumentStateProvider.tsx";
 
 
 const routes = [
@@ -11,7 +12,11 @@ const routes = [
     },
     {
         paths: ["/documents/:documentId"],
-        element: <DocumentPage />
+        element: (
+            <DocumentStateProvider>
+                <DocumentPage />)
+            </DocumentStateProvider>
+        )
     },
 ];
 function App() {
