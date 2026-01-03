@@ -69,13 +69,6 @@ export function useCollaborativeDocument(documentId: string): CollaborativeDocum
                 connection,
                 httpClient,
                 get state() { return stateRef.current },
-                setState: (updater: DocumentState | ((prev: DocumentState) => DocumentState)) => {
-                    setState(prev => {
-                        const next = typeof updater === 'function' ? updater(prev) : updater;
-                        stateRef.current = next;
-                        return next;
-                    });
-                }
             });
 
             setConnectionId(connection.getConnectionId());

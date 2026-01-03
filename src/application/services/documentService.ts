@@ -4,8 +4,6 @@ import {applyOperation} from "../../core/document/operations.ts";
 import {DocumentHttpClient} from "./documentHttpClient.ts";
 import {
     APPLY_OPERATION_COMMAND,
-    DELETE_OPERATION_TYPE,
-    INSERT_OPERATION_TYPE,
     JOIN_DOCUMENT_GROUP_COMMAND,
     LEAVE_DOCUMENT_GROUP_COMMAND,
     PARTY_CHANGED_COMMAND,
@@ -33,18 +31,18 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     };
 
     async function resyncDocument() {
-        if (deps.state.status === 'loading' || deps.state.status === 'error') {
+        if (currentState.status === 'loading' || currentState.status === 'error') {
             return;
         }
 
-        const documentId = deps.state.document.id;
+        const documentId = currentState.document.id;
         const savedPendingOps = [...pendingOperations];
 
         log('[DocumentService] Starting re-sync');
 
         updateState({
             status: 'syncing',
-            document: deps.state.document,
+            document: currentState.document,
             activeUsers: activeUsers
         });
         notifyAll();
@@ -91,14 +89,14 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                     document: reconciledDocument,
                     serverDocument: syncedDoc,
                     pendingOperation: pendingOperations[0],
-                    activeUsers: deps.state.activeUsers
+                    activeUsers: currentState.activeUsers
                 });
             } else {
                 updateState({
                     status: 'synced',
                     document: reconciledDocument,
                     serverDocument: syncedDoc,
-                    activeUsers: deps.state.activeUsers
+                    activeUsers: currentState.activeUsers
                 });
             }
 
@@ -110,86 +108,66 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
         }
     }
 
-    function handleReceiveOperation(operation: Operation) {
-        const myConnectionId = deps.connection.getConnectionId();
-        log('[DocumentService] ReceiveOperation', {
-            operationId: operation.id,
-            operation,
-            currentState: deps.state.status,
-            currentVersion: deps.state.status !== 'loading' && deps.state.status !== 'error' ? deps.state.document.version : 'N/A',
-            isOwnOperation: operation.userId === myConnectionId,
-            connectionId: operation.userId,
-            myConnectionId
-        });
-
-        if (deps.state.status === 'error' || deps.state.status === 'loading') {
-            log('[DocumentService] Ignoring operation. Document in invalid state.', deps.state);
+   function handleReceiveOperation(operation: Operation) {
+        if (currentState.status === 'error' || currentState.status === 'loading' || !('serverDocument' in currentState)) {
+            log('[DocumentService] Ignoring operation. Document in invalid state.', currentState);
             return;
         }
 
-        if (deps.state.status === 'optimistic') {
-            log('[DocumentService] Received operation while in optimistic state. Transitioning to syncing state.');
-            // resyncDocument();
-            return;
-        }
+        // Apply the operation to the server document
+        let newServerDoc = applyOperation(currentState.serverDocument, operation);
 
-        if (deps.state.status === 'synced') {
-            const currentVersion = deps.state.document.version;
+       if (pendingOperations.length > 0) {
+           const pending = pendingOperations[0];
+           log('[DocumentService] Comparing received operation with pending operation', {
+               receivedOperation: operation,
+               pendingOperation: pending
+           });
+           if (
+               pending.version === operation.version && pending.type === operation.type && pending.position === operation.position &&
+               (pending.content === undefined || pending.content === operation.content)
+           ) {
+               log('[DocumentService] Removing acknowledged pending operation:', pendingOperations[0]);
+               pendingOperations.shift();
+           }
+       }
 
-            if (operation.version === currentVersion + 1) {
-                log('[DocumentService] Applying operation to synced document in order');
+       log('[DocumentService] Pending operations after:', pendingOperations);
 
-                try {
-                    const newDoc = applyOperation(deps.state.document, operation);
-                    updateState({
-                        status: 'synced',
-                        document: newDoc,
-                        serverDocument: newDoc,
-                        activeUsers: deps.state.activeUsers
-                    });
-                    return;
-                } catch (error) {
-                    log('[DocumentService] Error applying operation:', error);
-                    // resyncDocument();
-                    return;
-                }
-            }
+       let optimisticDoc = newServerDoc;
+       for (const pendingOp of pendingOperations) {
+           optimisticDoc = applyOperation(optimisticDoc, pendingOp);
+       }
 
-            if (operation.version > currentVersion + 1) {
-                log('[DocumentService] Operation version too far ahead to be valid.', {
-                    received: operation.version,
-                    current: currentVersion,
-                    gap: operation.version - currentVersion
-                });
-                // resyncDocument();
-                return;
-            }
-            if (operation.version <= currentVersion) {
-                console.warn('[DocumentService] Received out-of-order operation. Ignoring.', {
-                    received: operation.version,
-                    current: currentVersion
-                });
-                return;
-            }
-
-        }
-
-        if (deps.state.status === 'syncing') {
-            console.log('[DocumentService] Ignoring operation while syncing');
-            return;
-        }
-    }
+       updateState(
+           pendingOperations.length > 0
+               ? {
+                   status: 'optimistic',
+                   document: optimisticDoc,
+                   serverDocument: newServerDoc,
+                   pendingOperation: pendingOperations[0],
+                   activeUsers: currentState.activeUsers
+               }
+               : {
+                   status: 'synced',
+                   document: newServerDoc,
+                   serverDocument: newServerDoc,
+                   activeUsers: currentState.activeUsers
+               }
+       );
+       notifyAll();
+   }
 
     function handlePartyChanged(message: PartyChangedMessage) {
-       log('PartyChanged', {
-           ...message,
-           action: message.action,
-       });
+        log('PartyChanged', {
+            ...message,
+            action: message.action,
+        });
 
        activeUsers = message.activeUsers;
-       if (deps.state.status !== 'loading' && deps.state.status !== 'error') {
+       if (currentState.status !== 'loading' && currentState.status !== 'error') {
            updateState({
-               ...deps.state,
+               ...currentState,
                activeUsers: activeUsers
            });
            notifyAll();
@@ -199,24 +177,6 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
     function setupSignalRHandlers() {
         deps.connection.onMessage(PARTY_CHANGED_COMMAND, handlePartyChanged);
         deps.connection.onMessage(RECEIVE_OPERATION_COMMAND, handleReceiveOperation);
-        deps.connection.onMessage(RECEIVE_OPERATION_COMMAND, (op: any) => {
-            console.log("[ReceiveOperation] raw:", op);
-
-            const type =
-                typeof op.type === "string"
-                    ? op.type.toLowerCase()
-                    : op.type === 0
-                        ? INSERT_OPERATION_TYPE
-                        : op.type === 1
-                            ? DELETE_OPERATION_TYPE
-                            : "none";
-
-            const normalized = { ...op, type };
-
-            console.log("[ReceiveOperation] normalized:", normalized);
-
-            // then dispatch/apply it
-        });
         log('SignalR event handlers registered.');
     }
 
@@ -263,12 +223,12 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             }
         },
         async applyLocalEdit(operation: Operation) {
-            if (deps.state.status !== 'synced' && deps.state.status !== 'optimistic') {
-                log('[DocumentService] Cannot apply local edit. Document not in a valid state.', deps.state);
+            if (currentState.status !== 'synced' && currentState.status !== 'optimistic') {
+                log('[DocumentService] Cannot apply local edit. Document not in a valid state.', currentState);
                 return;
             }
 
-            const currentDoc = deps.state.document;
+            const currentDoc = currentState.document;
             const newVersion = currentDoc.version + 1;
             const operationWithVersion: Operation = {
                 ...operation,
@@ -283,7 +243,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             updateState({
                 status: 'optimistic',
                 document: updatedDoc,
-                serverDocument: deps.state.serverDocument,
+                serverDocument: currentState.serverDocument,
                 pendingOperation: pendingOperations[0],
                 activeUsers: activeUsers
             });
@@ -300,8 +260,8 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
                 if (pendingOperations.length === 0) {
                     updateState({
                         status: 'synced',
-                        document: deps.state.serverDocument,
-                        serverDocument: deps.state.serverDocument,
+                        document: currentState.serverDocument,
+                        serverDocument: currentState.serverDocument,
                         activeUsers
                     });
                     notifyAll();
@@ -324,11 +284,11 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
         async cleanup() {
             log('[DocumentService] Cleaning up');
             teardownSignalRHandlers();
-            if (deps.state.status !== 'loading' && deps.state.status !== 'error') {
+            if (currentState.status !== 'loading' && currentState.status !== 'error') {
                 try {
                     if (deps.connection.isConnected()) {
-                        console.log('[DocumentService] Leaving document group:', deps.state.document.id);
-                        await deps.connection.sendMessage(LEAVE_DOCUMENT_GROUP_COMMAND, deps.state.document.id);
+                        console.log('[DocumentService] Leaving document group:', currentState.document.id);
+                        await deps.connection.sendMessage(LEAVE_DOCUMENT_GROUP_COMMAND, currentState.document.id);
                     } else {
                         console.log('[DocumentService] Skipping leave document group. Connection not established.');
                     }
@@ -342,7 +302,7 @@ export function documentService(deps: { connection: WebSocketConnection, httpCli
             activeUsers = [];
             notifyAll();
         },
-        getState: () => deps.state,
+        getState: () => currentState,
         getPendingOperations: () => [...pendingOperations]
     };
 }
